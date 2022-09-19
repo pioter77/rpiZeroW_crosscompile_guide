@@ -1,0 +1,205 @@
+16.09.2022 rpi zero w gt 5.15 cross compile instructions: on ubuntu 22.04 lts https://forums.raspberrypi.com/viewtopic.php?t=204529
+
+*config rpi with rapsbian buster lite 32 bit and ssh wifi conection from rpi image
+
+login to pi through ssh @ pi@address and go:
+sudo raspi -config go to advanced and select 2nd opton FAKE KMS exit and reboot
+
+sudo nano /etc/ssh/sshd_config
+
+find the line PermitRootLogin and make it comment out.
+
+then say yes
+
+PermitRootLogin yes
+
+to out ctrl -x and push the y
+
+sudo su
+passwd
+
+enter new root password
+
+now root login through ssh is enabled
+
+login as root (ssh)
+
+then
+
+
+nano /etc/apt/sources.list 
+
+uncomment the deb-src line 
+
+sudo apt-get update
+sudo apt-get dist-upgrade
+sudo reboot
+
+sudo rpi-update
+sudo reboot
+
+shhto pi a root
+
+sudo apt-get build-dep qt5-qmake
+sudo apt-get build-dep libqt5gui5
+apt-get install openjdk-8-jre-headless openjdk-8-jre
+sudo apt-get build-dep libqt5webengine-data
+sudo apt-get build-dep libqt5webkit5
+sudo apt-get install libudev-dev libinput-dev libts-dev libxcb-xinerama0-dev libxcb-xinerama0 gdbserver
+
+mkdir /usr/local/qt5pi
+chown -R root:root /usr/local/qt5pi
+
+
+in ubuntu::::::::::::
+log in to account (my case pioter)
+
+sudo apt-get update
+
+sudo apt-get -y upgrade
+sudo apt-get install gcc git bison python3 gperf pkg-config
+sudo mkdir /opt/qt5pi
+
+sudo mkdir /opt/qt5pi
+sudo mkdir /opt/qt5pi/build
+sudo mkdir /opt/qt5pi/sysroot
+sudo mkdir /opt/qt5pi/sysroot/usr
+sudo mkdir /opt/qt5pi/sysroot/opt
+sudo chown -R 1000:1000 /opt/qt5pi
+cd /opt/qt5pi
+
+
+
+
+////NOW THE TUTOARIA FORM FORUM STARTS:
+
+git clone https://github.com/raspberrypi/tools
+nano ~/.bashrc
+add at the end of file:
+export PATH=$PATH:/opt/qt5pi/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin
+
+restart termianal ot apply chages
+
+
+cd /opt/qt5pi
+
+
+
+wget https://download.qt.io/archive/qt/5.13/5.13.2/single/qt-everywhere-src-5.13.2.tar.xz
+
+sudo tar xfv qt-everywhere-src-5.13.2.tar.xz 
+
+
+cp -R qt-everywhere-src-5.13.2/qtbase/mkspecs/linux-arm-gnueabi-g++ qt-everywhere-src-5.13.2/qtbase/mkspecs/linux-arm-gnueabihf-g++
+sed -i -e 's/arm-linux-gnueabi-/arm-linux-gnueabihf-/g' qt-everywhere-src-5.13.2/qtbase/mkspecs/linux-arm-gnueabihf-g++/qmake.conf
+
+rsync -avz --rsync-path="sudo rsync" --delete root@192.168.0.14:/lib sysroot
+rsync -avz --rsync-path="sudo rsync" --delete root@192.168.0.14:/usr/include sysroot/usr
+rsync -avz --rsync-path="sudo rsync" --delete root@192.168.0.14:/usr/lib sysroot/usr
+rsync -avz --rsync-path="sudo rsync" --delete root@192.168.0.14:/opt/vc sysroot/opt
+
+symlinks to missing libraries:
+
+mv sysroot/usr/lib/arm-linux-gnueabihf/libEGL.so.1.0.0 sysroot/usr/lib/arm-linux-gnueabihf/libEGL.so.1.0.0_backup
+ln -s sysroot/opt/vc/lib/libEGL.so sysroot/usr/lib/arm-linux-gnueabihf/libEGL.so.1.0.0
+
+
+mv sysroot/usr/lib/arm-linux-gnueabihf/libGLESv2.so.2.0.0 sysroot/usr/lib/arm-linux-gnueabihf/libGLESv2.so.2.0.0_backup
+ln -s sysroot/opt/vc/lib/libGLESv2.so sysroot/usr/lib/arm-linux-gnueabihf/libGLESv2.so.2.0.0
+
+
+
+ln -s sysroot/opt/vc/lib/libEGL.so sysroot/opt/vc/lib/libEGL.so.1
+ln -s sysroot/opt/vc/lib/libGLESv2.so sysroot/opt/vc/lib/libGLESv2.so.2
+
+wget https://raw.githubusercontent.com/riscv/riscv-poky/master/scripts/sysroot-relativelinks.py
+chmod +x sysroot-relativelinks.py
+python3 ./sysroot-relativelinks.py sysroot
+
+mkdir /opt/qt5pi/build
+cd build
+
+
+../qt-everywhere-src-5.13.2/configure -opengl es2 -device linux-rasp-pi-g++ -device-option CROSS_COMPILE=arm-linux-gnueabihf- -sysroot /opt/qt5pi/sysroot -prefix /usr/local/qt5.13 -extprefix /opt/qt5pi/qt5.13 -opensource -confirm-license -skip qtwebengine -skip qtscript -nomake examples -make libs -v
+make -j4
+
+u need to make alias to python as python3 couse it will be missing  we executing make install:
+
+sudo apt install python-is-python3
+
+make install
+cd /opt/qt5pi
+
+
+rsync -avz --rsync-path="sudo rsync" qt5.13 pi@192.168.0.14:/usr/local/
+
+
+po zmienie projektu z c++17 na 11 śmiga! bo inaczej wywala blad cośtam 1z
+
+teraz ekran:
+
+Instalacja bibliotedki do oblsugi fbcp ili9341 (samo wyswietlanie na razie do dotyku musi byc osobny driver)
+ssh root@address
+
+(jestesmy w pi teraz jako root
+cd /root
+apt-get install git
+git clone https://github.com/juj/fbcp-ili9341.git
+cd fbcp-ili9341/
+mkdir build
+
+cd build 
+
+apt-get install cmake
+cmake -DILI9341=ON -DGPIO_TFT_DATA_CONTROL=24 -DGPIO_TFT_RESET_PIN=25 -DSPI_BUS_CLOCK_DIVISOR=6 -DDISPLAY_ROTATE_180_DEGREE=ON -DSTATISTICS=0 ..
+make -j
+
+nano /boot/config.txt
+
+serach there for line dtoverlay=vc4-kms-v3d
+and hash it out,
+go to the end od file  and add lines:
+
+hdmi_group=2
+hdmi_mode=87
+hdmi_cvt=320 240 60 5
+hdmi_force_hotplug=1
+
+ save and exit the file
+
+nano /etc/rc.local
+
+and add between fi and exit 0 line:
+
+/root/fbcp-ili9341/build/fbcp-ili9341 &
+
+
+save and exit the file
+
+rebot the pi now:
+
+reboot
+
+
+Now ur dispaly shoud work after rpi reboots but we need to direct qt image output to fb0 framebuffer help: https://doc.qt.io/qt-5/embedded-linux.html      https://stackoverflow.com/questions/50236156/making-a-qt-gui-application-run-on-a-framebuffer-in-linux
+
+
+ssh ro pi again:
+ssh root@address
+
+
+
+
+Qt creator build (for desktop not remote linux version) error: gl.h no such file or directory
+fix:
+sudo apt-get install libgl-dev
+
+
+when faced with an error when deploying to the remote linux device:
+QXcbConnection: Could not connect to display
+
+go to project tab on the left of qt creator, select ur kit, go to run settings and there is a line that goes: Commend line aruments:,
+paste there: -platform linuxfb:fb=/dev/fb0
+ur deploy step will be working now!
+
+(more connected info with this bug, couse this solution is kinda a walkaround): https://stackoverflow.com/questions/50801200/qxcbconnection-could-not-connect-to-display-when-remotely-debugging-program-wi
